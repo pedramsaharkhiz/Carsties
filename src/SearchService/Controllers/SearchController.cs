@@ -22,14 +22,12 @@ namespace SearchService.Controllers
             {
                 query.Match(Search.Full, searchParams.SearchTerm).SortByTextScore();
             }
-
             query = searchParams.OrderBy switch
             {
                 "make" => query.Sort(x => x.Ascending(a => a.Make)),
                 "new" => query.Sort(x => x.Descending(a => a.CreatedAt)),
                 _ => query.Sort(x => x.Ascending(a => a.AuctionEnd))
             };
-
             query = searchParams.FilterBy switch
             {
                 "finished" => query.Match(x => x.AuctionEnd < DateTime.UtcNow),
