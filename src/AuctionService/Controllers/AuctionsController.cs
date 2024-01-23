@@ -5,6 +5,7 @@ using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using Contracts;
 using MassTransit;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -52,11 +53,12 @@ namespace AuctionService.Controllers
             }
             return NotFound();
         }
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult<AuctionDto>> CreateAuction(CreateAuctionDto createAuctionDto)
         {
             var auction = _mapper.Map<Auction>(createAuctionDto);
-            auction.Seller = "test";
+            auction.Seller = User.Identity.Name;
             _context.Auctions.Add(auction);
             var newAuctionDto = _mapper.Map<AuctionDto>(auction);
             //below lines act like a transaction (because of Atomicity feature ...)
@@ -75,6 +77,7 @@ namespace AuctionService.Controllers
             //This allows the client to retrieve the newly created resource using a GET request.
             return CreatedAtAction(nameof(GetAuctionById), new { auction.Id }, newAuctionDto);
         }
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<ActionResult> UpdateAuction(Guid id, UpdateAuctionDto updateAuctionDto)
         {
@@ -83,8 +86,9 @@ namespace AuctionService.Controllers
             .FirstOrDefaultAsync(x => x.Id == id);
             if (currentAuction == null)
             {
-                return BadRequest("No Item Found to Update!");
+                return NotFound("No Item Found to Update!");
             }
+            if (currentAuction.Seller != User.Identity.Name) return Forbid();
             currentAuction.Item.Model = updateAuctionDto.Model ?? currentAuction.Item.Model;
             currentAuction.Item.Make = updateAuctionDto.Make ?? currentAuction.Item.Make;
             currentAuction.Item.Color = updateAuctionDto.Color ?? currentAuction.Item.Color;
@@ -112,7 +116,7 @@ namespace AuctionService.Controllers
             {
                 return NotFound("Item Not Found!");
             }
-
+            if (auction.Seller != User.Identity.Name) return Forbid();
             await _publishEndpoint.Publish(new AuctionDeleted { Id = id.ToString() });
 
             _context.Remove(auction);
