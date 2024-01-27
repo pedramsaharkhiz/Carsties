@@ -25,6 +25,11 @@ builder.Services.AddMassTransit(x =>
 
     x.UsingRabbitMq((context, conf) =>
     {
+        conf.Host(builder.Configuration["RabbitMq:Host"], "/", host =>
+        {
+            host.Username(builder.Configuration.GetValue("RabbitMq:Username", "guest"));
+            host.Password(builder.Configuration.GetValue("RabbitMq:Password", "guest"));
+        });
         //these below lines is for DataInconsistency, if mongoDb was down and message was in OutBoxMessage Table (message wa in Service Bus)
         //data hasn't saved to mongoDB yet, but request is going to resend many times till mogoDb is up and data save to that successfuly
         conf.ReceiveEndpoint("search-auction-created", e =>
@@ -33,11 +38,6 @@ builder.Services.AddMassTransit(x =>
             e.ConfigureConsumer<AuctionCreatedConsumer>(context);
         });
 
-        conf.ReceiveEndpoint("search-auction-deleted", e =>
-        {
-            e.UseMessageRetry(r => r.Interval(5, 5));
-            e.ConfigureConsumer<AuctionDeletedConsumer>(context);
-        });
         conf.ConfigureEndpoints(context);
     });
 });
